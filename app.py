@@ -25,15 +25,24 @@ def index():
 
         try:
             df = pd.read_excel(filepath)
+
+            # Ensure date is datetime
             df['Date:'] = pd.to_datetime(df['Date:'], errors='coerce')
 
-            start = datetime.strptime(start_date, "%Y-%m-%d")
-            end = datetime.strptime(end_date, "%Y-%m-%d")
+            # Filter IN only (case insensitive)
+            ins = df[df['Type IN or OUT only.'].str.upper() == 'IN']
 
-            ins = df[df['Type IN or OUT only.'] == 'IN']
-            unique_ins = ins.drop_duplicates(subset=['Reg Number:', 'Date:'])
-            filtered = unique_ins[(unique_ins['Date:'] >= start) & (unique_ins['Date:'] <= end)]
-            grouped = filtered.groupby(['Reg Number:', 'Name:']).size().reset_index(name='Days Present')
+            # Drop duplicate INs per reg per day
+            ins['DateStr'] = ins['Date:'].dt.date.astype(str)
+            unique_ins = ins.drop_duplicates(subset=['Reg Number:', 'DateStr'])
+
+            # Filter by selected date range
+            start = datetime.strptime(start_date, "%Y-%m-%d").date()
+            end = datetime.strptime(end_date, "%Y-%m-%d").date()
+            filtered = unique_ins[(unique_ins['Date:'].dt.date >= start) & (unique_ins['Date:'].dt.date <= end)]
+
+            # Group by Reg, Name, Hostel, Room and Side
+            grouped = filtered.groupby(['Reg Number:', 'Name:', 'Hostel:', 'Room and Side']).size().reset_index(name='Days Present')
 
             return render_template('results.html', tables=grouped.to_dict('records'))
         except Exception as e:
