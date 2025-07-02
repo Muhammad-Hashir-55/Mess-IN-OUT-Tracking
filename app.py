@@ -42,7 +42,7 @@ def index():
             filtered = unique_ins[(unique_ins['Date:'].dt.date >= start) & (unique_ins['Date:'].dt.date <= end)]
 
             # Group by Reg, Name, Hostel, Room and Side
-            grouped = filtered.groupby(['Reg Number:', 'Name:', 'Hostel:', 'Room and Side']).size().reset_index(name='Days Present')
+            grouped = filtered.groupby(['Reg Number:', 'Name:', 'Hostel:', 'Room and Side:']).size().reset_index(name='Days Present')
 
             return render_template('results.html', tables=grouped.to_dict('records'))
         except Exception as e:
