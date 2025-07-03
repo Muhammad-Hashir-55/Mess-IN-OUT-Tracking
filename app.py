@@ -3,8 +3,13 @@ import pandas as pd
 from datetime import datetime
 import os
 from werkzeug.utils import secure_filename
+from flask import send_file, session
+from io import BytesIO
+
 
 app = Flask(__name__)
+app.secret_key = 'simple'  # Needed for session
+
 UPLOAD_FOLDER = 'uploads'
 os.makedirs(UPLOAD_FOLDER, exist_ok=True)
 app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
@@ -35,11 +40,35 @@ def index():
             filtered = unique_ins[(unique_ins['Date:'] >= start) & (unique_ins['Date:'] <= end)]
             grouped = filtered.groupby(['Reg Number:', 'Name:','Hostel:' , 'Room and Side:']).size().reset_index(name='Days Present')
 
+            # Save summary DataFrame to session (as JSON string)
+            session['summary_data'] = grouped.to_json()
+
             return render_template('results.html', tables=grouped.to_dict('records'))
+
         except Exception as e:
             return f"Error processing file: {e}"
 
     return render_template('index.html')
+
+@app.route('/download')
+def download_summary():
+    if 'summary_data' not in session:
+        return "No summary data found. Please generate summary first."
+
+    # Load JSON back into DataFrame
+    df = pd.read_json(session['summary_data'])
+
+    # Create Excel in memory
+    output = BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Summary')
+    output.seek(0)
+
+    return send_file(output,
+                     download_name='summary.xlsx',
+                     as_attachment=True,
+                     mimetype='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+
 
 
 import os
