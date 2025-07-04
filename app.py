@@ -32,15 +32,27 @@ def index():
             df = pd.read_excel(filepath)
             df['Date:'] = pd.to_datetime(df['Date:'], errors='coerce')
 
-            start = datetime.strptime(start_date, "%Y-%m-%d")
-            end = datetime.strptime(end_date, "%Y-%m-%d")
+            start = datetime.strptime(start_date, "%Y-%m-%d").date()
+            end = datetime.strptime(end_date, "%Y-%m-%d").date()
 
-            ins = df[df['Type IN or OUT only.'] == 'IN']
-            unique_ins = ins.drop_duplicates(subset=['Reg Number:', 'Date:'])
-            filtered = unique_ins[(unique_ins['Date:'] >= start) & (unique_ins['Date:'] <= end)]
-            grouped = filtered.groupby(['Reg Number:', 'Name:','Hostel:' , 'Room and Side:']).size().reset_index(name='Days Present')
+            ins = df[df['Type IN or OUT only.'].str.upper() == 'IN'].copy()
+            ins['DateStr'] = ins['Date:'].dt.date
+            unique_ins = ins.drop_duplicates(subset=['Reg Number:', 'DateStr'])
 
-            # Save summary DataFrame to session (as JSON string)
+            filtered = unique_ins[(unique_ins['DateStr'] >= start) & (unique_ins['DateStr'] <= end)]
+
+            # Normalize Name casing (optional but recommended)
+            filtered['Name:'] = filtered['Name:'].str.strip().str.title()
+
+            # Now group by Reg Number only, and aggregate the rest
+            grouped = filtered.groupby('Reg Number:').agg({
+                'Name:': 'first',
+                'Hostel:': 'first',
+                'Room and Side:': 'first',
+                'DateStr': 'count'
+            }).reset_index().rename(columns={'DateStr': 'Days Present'})
+
+            # Store in session
             session['summary_data'] = grouped.to_json()
 
             return render_template('results.html', tables=grouped.to_dict('records'))
@@ -72,7 +84,6 @@ def download_summary():
 
 
 import os
-# new test begins
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
