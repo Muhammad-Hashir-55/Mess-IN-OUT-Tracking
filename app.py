@@ -47,8 +47,6 @@ def index():
             # Now group by Reg Number only, and aggregate the rest
             grouped = filtered.groupby('Reg Number:').agg({
                 'Name:': 'first',
-                'Hostel:': 'first',
-                'Room and Side:': 'first',
                 'DateStr': 'count'
             }).reset_index().rename(columns={'DateStr': 'Days Present'})
 
